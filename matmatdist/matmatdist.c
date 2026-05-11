@@ -168,73 +168,15 @@ void matmatdist(
 
     int row_idx = coords[0];
     int col_idx = coords[1];
-    //printf("Rank %d is located at grid coordinates (%d, %d)\n", grid_rank, row_idx, col_idx);
-
-
-    // Copy slice of A into local buffer local_a
-    
-    // 1. Compute offsets
-    int rows_per_proc = N1 / dims[0];
-    int cols_per_proc = N2 / dims[1];
-    double **local_a = alloc_matrix(rows_per_proc, cols_per_proc);
-    int offset_i = row_idx * rows_per_proc;
-    int offset_j = col_idx * cols_per_proc;
-
-    // 2. Copy
-    for (int i = 0; i < rows_per_proc; i++) {
-        int global_i = offset_i + i;
-        for (int j = 0; j < cols_per_proc; j++) {
-            int global_j = offset_j + j;
-            local_a[i][j] = A[global_i][global_j];
-        }
-    }
-
-    // Copy slize of B into local buffer local_b
-
-    // 1. Compute offsets
-    rows_per_proc = N2 / dims[0];
-    cols_per_proc = N3 / dims[1];
-    double **local_b = alloc_matrix(rows_per_proc, cols_per_proc);
-    offset_i = row_idx * rows_per_proc;
-    offset_j = col_idx * cols_per_proc;
-
-    // 2. Copy slice of B
-    for (int i = 0; i < rows_per_proc; i++) {
-        int global_i = offset_i + i;
-        for (int j = 0; j < cols_per_proc; j++) {
-            int global_j = offset_j + j;
-            local_b[i][j] = B[global_i][global_j];
-        }
-    }
 
     // Create row and col communicators
     MPI_Comm row_comm;
     MPI_Comm col_comm;
     int remain_row[2] = {0, 1};
-    MPI_Cart_sub(grid_comm, remain_row, &row_comm);
     int remain_col[2]= {1,0};
+
+    MPI_Cart_sub(grid_comm, remain_row, &row_comm);
     MPI_Cart_sub(grid_comm, remain_col, &col_comm);
-
-    /*
-    //Test row brodcast
-    int row_test_val = grid_rank;
-    printf("Row_test_val, Process with rank: %d\n", row_test_val);
-    //Process with rank 0 will broadcast its global rank to its row mates
-    MPI_Bcast(&row_test_val, 1, MPI_INT, 0, row_comm);
-    printf("[Row Test] Global Rank %d (Coord %d,%d) received %d from Row Rank 0\n",
-       grid_rank, coords[0], coords[1], row_test_val);
-
-    //Test col broadcast
-    int col_test_val = grid_rank;
-    // Process with col_rank 0 will broadcast its global rank to its column mates
-    MPI_Bcast(&col_test_val, 1, MPI_INT, 0, col_comm);
-    printf("[Col Test] Global Rank %d (Coord %d,%d) received %d from Col Rank 0\n",
-       grid_rank, coords[0], coords[1], col_test_val);
-
-    printf("----------------------------------\n");
-    */
-    // SUMMA stub — broadcast and accumulate per column panel
-    // (full SUMMA implementation would go here)
 
     int rows_per_proc_a = N1 / dims[0];
     int cols_per_proc_a = N2 / dims[1];
@@ -246,17 +188,14 @@ void matmatdist(
     //Allocate local c
     int rows_per_proc_c = N1 / dims[0];
     int cols_per_proc_c = N3 / dims[1];
-
-    // Allocate the local matrix
     double **local_c = alloc_matrix(rows_per_proc_c, cols_per_proc_c);
     reset_matrix_to_zero(local_c, rows_per_proc_c, cols_per_proc_c);
 
     for (int k = 0; k < dims[1]; k++) {
-        // TODO: MPI_Bcast local_a row panel from rank with col_idx==k
         if (k == col_idx){
             for (int i=0; i<rows_per_proc_a; i++){
                 for(int j=0; j<cols_per_proc_a; j++){
-                    panel_a_buf[i*cols_per_proc_a +j] = local_a[i][j];
+                    panel_a_buf[i*cols_per_proc_a +j] = A[row_idx * rows_per_proc_a + i][col_idx * cols_per_proc_a + j];
                 }
             }
 
@@ -267,7 +206,7 @@ void matmatdist(
         if (k==row_idx) {
             for (int i=0; i<rows_per_proc_b; i++){
                 for(int j=0; j<cols_per_proc_b; j++){
-                    panel_b_buf[i*cols_per_proc_b + j] = local_b[i][j];
+                    panel_b_buf[i*cols_per_proc_b + j] = B[row_idx * rows_per_proc_b + i][col_idx * cols_per_proc_b + j];
                 }
             }
 
@@ -329,8 +268,6 @@ void matmatdist(
     free(send_buf);
     free(panel_a_buf);
     free(panel_b_buf);
-    free_matrix(local_a, rows_per_proc_a);
-    free_matrix(local_b, rows_per_proc_b);
     free_matrix(local_c, rows_per_proc_c);
  
     MPI_Comm_free(&row_comm);
@@ -479,7 +416,6 @@ int main(int argc, char *argv[]) {
                t_thread / t_dist,
                gflops / t_dist);
     }
-
 
     // Free memory 
     free_matrix(A, N); free_matrix(B, N);
