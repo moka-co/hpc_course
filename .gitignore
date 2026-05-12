@@ -1,3 +1,7 @@
+# Plots and results
+plots/
+results/
+
 # Prerequisites
 *.d
 

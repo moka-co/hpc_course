@@ -29,6 +29,39 @@ int parse_int(const char *arg, int default_val) {
     return (int)val;
 }
 
+/* --- Save final results to file */
+void save_results_to_file(
+    int N, int NTROW, int NTCOL, int db, int PROW, int PCOL,
+    double t_ikj, double t_block, double t_thread, double t_dist,
+    int dims_0, int dims_1
+) {
+    char filename[256];
+    snprintf(filename, sizeof(filename), 
+             "results/matmatdist_result_%d_%d_%d_%d_%d_%d.txt",
+             N, NTROW, NTCOL, db, PROW, PCOL);
+    
+    FILE *fp = fopen(filename, "w");
+    if (!fp) {
+        perror("fopen");
+        return;
+    }
+    
+    double gflops = 2.0 * N * N * N * 1e-9;
+    int num_threads = NTROW * NTCOL;
+    int total_cores = dims_0 * dims_1 * num_threads;
+    
+    fprintf(fp, "matmat_ikj time=%.6f gflops=%.3f speedup=1.0 efficiency=1.0\n", 
+            t_ikj, gflops / t_ikj);
+    fprintf(fp, "matmatblock time=%.6f gflops=%.3f speedup=%.3f efficiency=%.3f\n", 
+            t_block, gflops / t_block, t_ikj / t_block, (t_ikj / t_block) / 1);
+    fprintf(fp, "matmatthread time=%.6f gflops=%.3f speedup=%.3f efficiency=%.3f\n", 
+            t_thread, gflops / t_thread, t_ikj / t_thread, (t_ikj / t_thread) / num_threads);
+    fprintf(fp, "matmatdist time=%.6f gflops=%.3f speedup=%.3f efficiency=%.3f\n", 
+            t_dist, gflops / t_dist, t_ikj / t_dist, (t_ikj / t_dist) / total_cores);
+    
+    fclose(fp);
+}
+
 /* --- Matrix Management --- */
 
 double **alloc_matrix(int rows, int cols) {
@@ -308,12 +341,18 @@ int main(int argc, char *argv[]) {
             }
         }
         printf("\nMax Error: %.6e (%s)\n", max_err, max_err < 1e-9 ? "PASS" : "FAIL");
-        printf("\n%-20s %12s %12s %12s\n", "Method", "Time (s)", "Speedup", "GFlop/s");
+        printf("\n%-20s %12s %12s %12s %12s\n", "Method", "Time (s)", "Speedup", "Efficiency" , "GFlop/s");
         double gflops = 2.0 * N * N * N * 1e-9;
-        printf("%-20s %12.4f %12s %12.3f\n", "matmat_ikj", t_ikj, "1.00x", gflops / t_ikj);
-        printf("%-20s %12.4f %12.3fx %12.3f\n", "matmatblock", t_block, t_ikj / t_block, gflops / t_block);
-        printf("%-20s %12.4f %12.3fx %12.3f\n", "matmatthread", t_thread, t_ikj / t_thread, gflops / t_thread);
-        printf("%-20s %12.4f %12.3fx %12.3f\n", "matmatdist", t_dist, t_ikj / t_dist, gflops / t_dist);
+        printf("%-20s %12.4f %12s %12d %12.3f\n", "matmat_ikj", t_ikj, "1.00x", 1, gflops / t_ikj);
+        printf("%-20s %12.4f %12.3fx %12.3f %12.3f\n", "matmatblock", t_block, t_ikj / t_block, (t_ikj/t_block)/1,  gflops / t_block);
+        double e_thread = (t_ikj/t_thread)/(conf.NTROW*conf.NTCOL);
+        printf("%-20s %12.4f %12.3fx %12.3f %12.3f\n", "matmatthread", t_thread, t_ikj / t_thread, e_thread , gflops / t_thread);
+        double e_dist = (t_ikj/t_dist)/(dims[0]* dims[1] *conf.NTROW * conf.NTCOL);
+        printf("%-20s %12.4f %12.3fx %12.3f %12.3f\n", "matmatdist", t_dist, t_ikj / t_dist, e_dist , gflops / t_dist);
+
+        //Save results to file
+        save_results_to_file(N, conf.NTROW, conf.NTCOL, conf.db, conf.PROW, conf.PCOL, t_ikj, t_block, t_thread, t_dist, dims[0], dims[1]);
+
     }
 
     free_matrix(A, N); free_matrix(B, N); free_matrix(Cdist, N);
