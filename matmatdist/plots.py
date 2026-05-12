@@ -83,7 +83,6 @@ def plot_speedup(df, output_file='plots/speedup.png'):
     
     for idx, method in enumerate(methods):
         speedups = [df[df['N'] == n][f'{method}_speedup'].values[0] for n in n_values]
-        #ax.bar(x_pos + idx * width, speedups, width, label=method.replace('matmat', ''),color=colors[idx], alpha=0.8)
         ax.plot(n_values, speedups, marker=markers[idx], linewidth=2.5, markersize=8, label=method.replace('matmat', ''), color=colors[idx])
     
     ax.axhline(y=1.0, color='black', linestyle='--', linewidth=2, alpha=0.5)
@@ -128,123 +127,6 @@ def plot_efficiency(df, output_file='plots/efficiency.png'):
     print(f"Saved: {output_file}")
     plt.close()
 
-def plot_speedup_vs_processes(df, output_file='plots/speedup_vs_processes.png'):
-    """Plot speedup vs number of processes for matmatdist."""
-    n_values = sorted(df['N'].unique())
-    fig, axes = plt.subplots(1, len(n_values), figsize=(5*len(n_values), 6))
-    if len(n_values) == 1:
-        axes = [axes]
-    
-    for ax_idx, n in enumerate(n_values):
-        subset = df[df['N'] == n]
-        
-        # Calculate number of processes
-        subset_copy = subset.copy()
-        subset_copy['np'] = subset_copy['PROW'] * subset_copy['PCOL']
-        
-        ax = axes[ax_idx]
-        
-        methods = ['matmatdist']
-        colors = ['#FFA62B']
-        markers = ['o']
-        
-        for idx, method in enumerate(methods):
-            # Sort by np for a clean line
-            sub_sorted = subset_copy.sort_values('np')
-            speedups = sub_sorted[f'{method}_speedup'].values
-            np_vals = sub_sorted['np'].values
-            ax.plot(np_vals, speedups, marker=markers[idx], linewidth=2.5, markersize=8,
-                    label=method.replace('matmat', ''), color=colors[idx])
-        
-        ax.axhline(y=1.0, color='black', linestyle='--', linewidth=1, alpha=0.5)
-        ax.set_xlabel('Number of Processes (NP)', fontsize=11, fontweight='bold')
-        ax.set_ylabel('Speedup', fontsize=11, fontweight='bold')
-        ax.set_title(f'N = {int(n)} (Distributed)', fontsize=12, fontweight='bold')
-        ax.grid(True, alpha=0.3, linestyle='--')
-    
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    print(f"Saved: {output_file}")
-    plt.close()
-
-def plot_speedup_vs_threads(df, output_file='plots/speedup_vs_threads.png'):
-    """Plot speedup vs number of threads for matmatthread."""
-    n_values = sorted(df['N'].unique())
-    fig, axes = plt.subplots(1, len(n_values), figsize=(5*len(n_values), 6))
-    if len(n_values) == 1:
-        axes = [axes]
-    
-    for ax_idx, n in enumerate(n_values):
-        subset = df[df['N'] == n]
-        
-        # Calculate total threads
-        subset_copy = subset.copy()
-        subset_copy['threads'] = subset_copy['NTROW'] * subset_copy['NTCOL']
-        
-        ax = axes[ax_idx]
-        
-        # Use matmatthread for this plot
-        method = 'matmatthread'
-        color = '#4ECDC4'
-        marker = 's'
-        
-        # Sort by threads for a clean line
-        sub_sorted = subset_copy.sort_values('threads')
-        speedups = sub_sorted[f'{method}_speedup'].values
-        thread_vals = sub_sorted['threads'].values
-        
-        ax.plot(thread_vals, speedups, marker=marker, linewidth=2.5, markersize=8,
-                label='thread', color=color)
-        
-        ax.axhline(y=1.0, color='black', linestyle='--', linewidth=1, alpha=0.5)
-        ax.set_xlabel('Number of Threads', fontsize=11, fontweight='bold')
-        ax.set_ylabel('Speedup', fontsize=11, fontweight='bold')
-        ax.set_title(f'N = {int(n)} (Threaded)', fontsize=12, fontweight='bold')
-        ax.grid(True, alpha=0.3, linestyle='--')
-    
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    print(f"Saved: {output_file}")
-    plt.close()
-
-def plot_speedup_dist_thread_map(df, output_file='plots/speedup_dist_thread_map.png'):
-    """Plot speedup vs NP with red speedup annotations and no thread references."""
-    n_values = sorted(df['N'].unique())
-    fig, axes = plt.subplots(1, len(n_values), figsize=(6*len(n_values), 7))
-    if len(n_values) == 1:
-        axes = [axes]
-    
-    for ax_idx, n in enumerate(n_values):
-        subset = df[df['N'] == n].copy()
-        subset['np'] = subset['PROW'] * subset['PCOL']
-        
-        ax = axes[ax_idx]
-        
-        # Sort by NP for a clean line
-        subset = subset.sort_values('np')
-        np_vals = subset['np'].values
-        speedups = subset['matmatdist_speedup'].values
-        
-        # Plot single scaling line
-        ax.plot(np_vals, speedups, marker='o', linewidth=2.5, markersize=8, 
-                color='#FFA62B', label='matmatdist')
-        
-        # Annotate speedup values in red
-        for x, y, val in zip(np_vals, speedups, speedups):
-            ax.text(x, y + 0.05, f'{val:.2f}', color='red', fontsize=10, 
-                    fontweight='bold', ha='center', va='bottom')
-        
-        ax.axhline(y=1.0, color='black', linestyle='--', linewidth=1, alpha=0.5)
-        ax.set_xlabel('Number of Processes (NP)', fontsize=11, fontweight='bold')
-        ax.set_ylabel('Speedup', fontsize=11, fontweight='bold')
-        ax.set_title(f'N = {int(n)}\nDistributed Speedup Scaling', fontsize=13, fontweight='bold')
-        ax.grid(True, alpha=0.3, linestyle='--')
-    
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    print(f"Saved: {output_file}")
-    plt.close()
-
 def plot_matmatdist_scaling_comparison(df, output_file='plots/matmatdist_scaling_comparison.png'):
     """Plot matmatdist scaling comparison for N=2048, 4096, and 6144."""
     target_n = [2048, 4096, 6144]
@@ -275,12 +157,10 @@ def plot_matmatdist_scaling_comparison(df, output_file='plots/matmatdist_scaling
             ax.plot(np_vals, speedups, marker=markers[idx], linewidth=2.5, markersize=8, 
                     color=colors[idx], label=f'NT={t}')
             
-            # Annotate speedup values in black with alternating offsets to avoid overlap
+            # Annotate speedup values
             for i, (x, y, val) in enumerate(zip(np_vals, speedups, speedups)):
-                # Alternate between putting text above and below the point
                 offset = 0.08 if i % 2 == 0 else -0.15
                 va = 'bottom' if i % 2 == 0 else 'top'
-                
                 ax.text(x, y + offset, f'{val:.2f}', color='black', fontsize=10, 
                         fontweight='bold', ha='center', va=va)
         
@@ -288,6 +168,58 @@ def plot_matmatdist_scaling_comparison(df, output_file='plots/matmatdist_scaling
         ax.set_xlabel('Number of Processes (NP)', fontsize=12, fontweight='bold')
         ax.set_ylabel('Speedup', fontsize=12, fontweight='bold')
         ax.set_title(f'matmatdist Scaling (N={n})', fontsize=14, fontweight='bold')
+        ax.grid(True, alpha=0.3, linestyle='--')
+        
+        if len(all_np) > 0:
+            ax.set_xticks(sorted(list(all_np)))
+        ax.legend(title='Threads per Process', fontsize=10)
+    
+    plt.tight_layout()
+    plt.savefig(output_file, dpi=300, bbox_inches='tight')
+    print(f"Saved: {output_file}")
+    plt.close()
+
+def plot_matmatdist_efficiency_comparison(df, output_file='plots/matmatdist_efficiency_comparison.png'):
+    """Plot matmatdist efficiency comparison for N=2048, 4096, and 6144."""
+    target_n = [2048, 4096, 6144]
+    target_threads = [1, 2, 4, 8]
+    colors = ['#FFA62B', '#4ECDC4', '#FF6B6B', '#45B7D1']
+    markers = ['o', 's', 'D', 'p']
+    
+    fig, axes = plt.subplots(1, 3, figsize=(27, 8))
+    
+    for ax_idx, n in enumerate(target_n):
+        subset_n = df[df['N'] == n].copy()
+        subset_n['threads'] = subset_n['NTROW'] * subset_n['NTCOL']
+        subset_n['np'] = subset_n['PROW'] * subset_n['PCOL']
+        
+        ax = axes[ax_idx]
+        all_np = set()
+        
+        for idx, t in enumerate(target_threads):
+            sub = subset_n[subset_n['threads'] == t].sort_values('np')
+            if sub.empty:
+                continue
+                
+            np_vals = sub['np'].values
+            efficiencies = sub['matmatdist_efficiency'].values
+            all_np.update(np_vals.tolist())
+            
+            # Plot line
+            ax.plot(np_vals, efficiencies, marker=markers[idx], linewidth=2.5, markersize=8, 
+                    color=colors[idx], label=f'NT={t}')
+            
+            # Annotate efficiency values
+            for i, (x, y, val) in enumerate(zip(np_vals, efficiencies, efficiencies)):
+                offset = 0.04 if i % 2 == 0 else -0.08
+                va = 'bottom' if i % 2 == 0 else 'top'
+                ax.text(x, y + offset, f'{val:.2f}', color='black', fontsize=10, 
+                        fontweight='bold', ha='center', va=va)
+        
+        ax.axhline(y=1.0, color='green', linestyle='--', linewidth=2, alpha=0.5, label='Perfect')
+        ax.set_xlabel('Number of Processes (NP)', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Efficiency', fontsize=12, fontweight='bold')
+        ax.set_title(f'matmatdist Efficiency (N={n})', fontsize=14, fontweight='bold')
         ax.grid(True, alpha=0.3, linestyle='--')
         
         if len(all_np) > 0:
@@ -340,10 +272,8 @@ def main():
     print_summary(df)
     plot_speedup(df)
     plot_efficiency(df)
-    plot_speedup_vs_processes(df)
-    plot_speedup_vs_threads(df)
-    plot_speedup_dist_thread_map(df)
     plot_matmatdist_scaling_comparison(df)
+    plot_matmatdist_efficiency_comparison(df)
     
     print("Plot generation complete!")
 
